@@ -1,9 +1,48 @@
-<?xml version="1.0?>
-<settings>
-/input filename?
-/ merge files? - filename? merge with most recent? different input file?
+<?xml version="1.0"?>
+<TLCParser>
+  <!-- Settings group specifies what the parse awards program will output. -->
+  <Settings>
+    <!-- Set SkipPurchasedAwards to 1 if purchased awards were already announced and packaged. 0 to include in the program. -->
+    <SkipPurchasedAwards>1</SkipPurchasedAwards>
+    <!-- Set SkipPurchasedRanks to 1 if purchased ranks were already announced and packaged. 0 to include in the program. -->
+    <SkipPurchasedRanks>0</SkipPurchasedRanks>
+  
+    <!-- Filename of html file containing listing of all awards to be announced and handed out for each Trailman. -->
+    <AwardsCardsOutputFile>awards_detail_cards.html</AwardsCardsOutputFile>
+    <!-- Filename of html file containing the awards program. -->
+    <AwardsProgramOutputFile>awards_program.html</AwardsProgramOutputFile>
+    <!-- Filename of xlsx awards shopping list. Leave blank to create a date-stamped filename. -->
+    <AwardsShoppingList></AwardsShoppingList>
+  
+    <!-- If either of the SkipPurchased settings is 1, write an additional output file including all purchased awards to this html filename. Leave blank to not write this file. -->
+    <FullAwardsOutputFile>awards_full_listing.html</FullAwardsOutputFile>
 
-/ output filenames
+    <!-- Set MergeWithPreviousData to 1 to merge a new awards list with previously captured data. -->
+    <MergeWithPreviousData>0</MergeWithPreviousData>
+    <!-- Name of pkl file containing data to merge with. Leave blank to use most recent date-stamped pkl file in the directory. -->
+    <PreviousDataFile></PreviousDataFile>
+    <!-- If not blank, create an additional shopping list containing only the brand new awards to this file. Leave blank to not write. -->
+    <NewAwardsShoppingList>temp_new_awards_shopping_list.xlsx</NewAwardsShoppingList>
+  </Settings>
 
-/ exclude purchased?
-</settings>
+  <!-- DYOBadges is an optional group listing the preferred names of an Design your own/TEAMS badges earned. -->
+  <DYOBadges>
+    <!-- List a separate Badge group for each custom badge. If a badge is found not listed here, you will be prompted for a name. -->
+    <Badge>
+      <!-- Name of Trailman earning the badge in Last Name, First Name format. -->
+      <Trailman>Lastname, Firstname</Trailman>
+      <!-- Date badge was completed in MM/DD/YYYY format. -->
+      <CompletedDate>01/01/2020</CompletedDate>
+      <!-- Name to be assigned in the awards program to badge matching the Trailman name and completion date. -->
+      <BadgeName>Chosen Badge Name</BadgeName>
+    </Badge>
+    <Badge>
+      <!-- Name of Trailman earning the badge in Last Name, First Name format. -->
+      <Trailman>Lastname, Firstname</Trailman>
+      <!-- Date badge was completed in MM/DD/YYYY format. -->
+      <CompletedDate>01/01/2021</CompletedDate>
+      <!-- Name to be assigned in the awards program to badge matching the Trailman name and completion date. -->
+      <BadgeName>Chosen Badge Name 2</BadgeName>
+    </Badge>
+  </DYOBadges>
+</TLCParser>

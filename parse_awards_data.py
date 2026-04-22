@@ -15,6 +15,7 @@ from openpyxl.styles import PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+from tkinter.simpledialog import askstring
 from pathlib import Path
 
 class COH_Report:
@@ -174,6 +175,7 @@ class COH_Report:
                             frontier = re.split(r'[()]', additional_data)[1].strip()
                             additional_data = f'{frontier} Elective'
                         if 'Design Your Own Badge' in award_name:
+                            # askstring("DYOB Badge", "Enter name of badge earned by {ABC} on {XYZ}:")
                             award_name = input(
                                 f'Please enter the correct name for the Design Your Own/TEAMS {additional_data} Badge earned by {name} on {completion_date}:'
                                 )
@@ -785,17 +787,15 @@ def latest_data_file():
 initial_dump = True
 
 Tk().withdraw()
-input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files","*.htm")])
+input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files",("*.htm","*.html"))])
 file_path = Path(input_file_path).resolve().parent
 os.chdir(file_path)
 
 awards_program = 'awards_program.html'
 award_cards = 'awards_detail_cards.html'
 if initial_dump:
-    input_file_path = 'Court of Honor Report.htm'
     full_dump_file = 'awards_full_dump.html'
 else:
-    input_file_path = 'AdditionalAwards.htm'
     full_dump_file = 'updated_awards_full_dump.html'
     previous_data_file = latest_data_file()
     new_awards_shopping_list = 'temp_new_awards_shopping_list.xlsx'
