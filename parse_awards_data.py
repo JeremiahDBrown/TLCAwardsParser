@@ -17,10 +17,226 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 from tkinter.simpledialog import askstring
 from pathlib import Path
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+
+class TLCParserConfig:
+    def __init__(self):
+        # Settings defaults
+        self.skip_purchased_awards = 1
+        self.skip_purchased_ranks = 0
+        self.awards_cards_output_file = "awards_detail_cards.html"
+        self.awards_program_output_file = "awards_program.html"
+        self.awards_shopping_list = ""
+        self.full_awards_output_file = "awards_full_listing.html"
+        self.merge_with_previous_data = 0
+        self.previous_data_file = ""
+        self.new_awards_cards_output_file = ""
+        self.new_awards_shopping_list = "temp_new_awards_shopping_list.xlsx"
+
+        # DYOBadges: list of dicts
+        self.badges = []
+    
+    # -------------------------
+    # LOAD FROM XML
+    # -------------------------
+    def load(self, filename):
+        tree = ET.parse(filename)
+        root = tree.getroot()
+
+        settings = root.find('Settings')
+        if settings is not None:
+            self.skip_purchased_awards = int(settings.findtext('SkipPurchasedAwards', '1'))
+            self.skip_purchased_ranks = int(settings.findtext('SkipPurchasedRanks', '0'))
+            self.awards_cards_output_file = settings.findtext('AwardsCardsOutputFile', 'awards_detail_cards.html')
+            self.awards_program_output_file = settings.findtext('AwardsProgramOutputFile', 'awards_program.html')
+            self.awards_shopping_list = settings.findtext('AwardsShoppingList', '')
+            self.full_awards_output_file = settings.findtext('FullAwardsOutputFile', 'awards_full_listing.html')
+            self.merge_with_previous_data = int(settings.findtext('MergeWithPreviousData', '0'))
+            self.previous_data_file = settings.findtext('PreviousDataFile', '')
+            self.new_awards_cards_output_file = settings.findtext('NewAwardsCardsOutputFile', '')
+            self.new_awards_shopping_list = settings.findtext('NewAwardsShoppingList', 'temp_new_awards_shopping_list.xlsx')
+
+        # Load badges
+        self.badges = []
+        dyo = root.find('DYOBadges')
+        if dyo is not None:
+            for b in dyo.findall('Badge'):
+                self.badges.append({
+                    'Trailman': b.findtext('Trailman', ''),
+                    'CompletedDate': b.findtext('CompletedDate', ''),
+                    'BadgeName': b.findtext('BadgeName', '')
+                })
+        # remove example badges
+        self.badges = [b for b in self.badges if b['CompletedDate'] != '01/01/2001']
+
+    # -------------------------
+    # GETTERS
+    # -------------------------
+    def get_skip_purchased_awards(self):
+        return self.skip_purchased_awards
+
+    def get_skip_purchased_ranks(self):
+        return self.skip_purchased_ranks
+
+    def get_awards_cards_output_file(self):
+        return self.awards_cards_output_file
+
+    def get_awards_program_output_file(self):
+        return self.awards_program_output_file
+
+    def get_awards_shopping_list(self):
+        return self.awards_shopping_list
+
+    def get_full_awards_output_file(self):
+        return self.full_awards_output_file
+
+    def get_merge_with_previous_data(self):
+        return self.merge_with_previous_data
+
+    def get_previous_data_file(self):
+        return self.previous_data_file
+
+    def get_new_awards_cards_output_file(self):
+        return self.new_awards_cards_output_file
+
+    def get_new_awards_shopping_list(self):
+        return self.new_awards_shopping_list
+
+    def get_badges(self):
+        return self.badges
+
+    def get_badge_name(self, trailman, completed_date):
+        for b in self.badges:
+            if b['Trailman'] == trailman and b['CompletedDate'] == completed_date:
+                return b['BadgeName']
+        return None
+    
+    # -------------------------
+    # WRITE TO XML (WITH COMMENTS)
+    # -------------------------
+    def write(self, filename):
+        root = ET.Element('TLCParser')
+
+        # ---- Settings ----
+        root.append(ET.Comment(
+            "Settings group specifies what the parse awards program will output."
+        ))
+        settings = ET.SubElement(root, 'Settings')
+
+        def add_setting(name, value, comment, append_newline=False):
+            settings.append(ET.Comment(comment))
+            elem = ET.SubElement(settings, name)
+            elem.text = str(value)
+
+        add_setting(
+            'SkipPurchasedAwards',
+            self.skip_purchased_awards,
+            "Set to 1 if purchased awards were already announced and packaged or 0 if they should be included in the program."
+        )
+
+        add_setting(
+            'SkipPurchasedRanks',
+            self.skip_purchased_ranks,
+            "Set to 1 if purchased ranks were already announced and packaged or 0 if they should be included in the program."
+        )
+
+        add_setting(
+            'AwardsCardsOutputFile',
+            self.awards_cards_output_file,
+            "Filename of HTML file containing listing of all awards to be announced and handed out for each Trailman."
+        )
+
+        add_setting(
+            'AwardsProgramOutputFile',
+            self.awards_program_output_file,
+            "Filename of HTML file containing the awards program."
+        )
+
+        add_setting(
+            'AwardsShoppingList',
+            self.awards_shopping_list,
+            "Filename of XLSX shopping list (blank = default time-stamped name)."
+        )
+
+        add_setting(
+            'FullAwardsOutputFile',
+            self.full_awards_output_file,
+            "Optional full awards output file (including purchased awards skipped in the program)."
+        )
+
+        add_setting(
+            'MergeWithPreviousData',
+            self.merge_with_previous_data,
+            "Set to 1 to merge with previous data."
+        )
+
+        add_setting(
+            'PreviousDataFile',
+            self.previous_data_file,
+            "PKL file to merge with (blank = merge with most recent file)."
+        )
+
+        add_setting(
+            'NewAwardsCardsOutputFile',
+            self.new_awards_cards_output_file,
+            "Optional listing of awards only read from new file (leave blank to skip writing this file)."
+        )
+
+        add_setting(
+            'NewAwardsShoppingList',
+            self.new_awards_shopping_list,
+            "Optional shopping list for new awards only (leave blank to skip writing this file)."
+        )
+
+        # ---- DYOBadges ----
+        badges_to_write = self.badges
+        if not badges_to_write:
+            badges_to_write.append({
+                'Trailman': 'John Doe',
+                'CompletedDate': '01/01/2001',
+                'BadgeName': 'Example Badge 1'
+            })
+            badges_to_write.append({
+                'Trailman': 'James Doe',
+                'CompletedDate': '01/01/2001',
+                'BadgeName': 'Example Badge 2'
+            })
+        
+        root.append(ET.Comment(
+            """Optional group listing any custom Design-Your-Own/TEAMS badge names.
+            List a separate Badge group for each custom badge. If a badge is found not listed here,
+            you will be prompted for a name. The Trailman name (in 'Firstname Lastname' format) and
+            Completion Date (in 'MM/DD/YYYY' format) are used to match the badge name with the correct award."""
+        ))
+        dyo = ET.SubElement(root, 'DYOBadges')
+
+        for b in self.badges:
+            dyo.append(ET.Comment(
+                "Custom badge entry"
+            ))
+            badge = ET.SubElement(dyo, 'Badge')
+
+            ET.SubElement(badge, 'Trailman').text = b['Trailman']
+            ET.SubElement(badge, 'CompletedDate').text = b['CompletedDate']
+            ET.SubElement(badge, 'BadgeName').text = b['BadgeName']
+
+        # ---- Pretty print ----
+        rough = ET.tostring(root, 'utf-8')
+        pretty = minidom.parseString(rough).toprettyxml(indent="  ")
+        pretty = pretty.replace("</SkipPurchasedRanks>", "</SkipPurchasedRanks>\n")
+        pretty = pretty.replace("</AwardsShoppingList>", "</AwardsShoppingList>\n")
+        pretty = pretty.replace("<AwardsShoppingList/>", "<AwardsShoppingList/>\n")
+        pretty = pretty.replace("</FullAwardsOutputFile>", "</FullAwardsOutputFile>\n")
+        pretty = pretty.replace("</Settings>", "</Settings>\n")
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(pretty)
 
 class COH_Report:
-    def __init__(self, infile=None):
+    def __init__(self, infile=None, config=TLCParserConfig()):
         self.infile = infile
+        self.config = config
         self.previous_awards = []
         self.new_awards = []
         self.date = None
@@ -120,7 +336,7 @@ class COH_Report:
             if self.infile is None:
                 self.infile = old_data.infile
     
-    def parse_court_of_honor_html(self, infile, read_purchased_as_awarded=True):
+    def parse_court_of_honor_html(self, infile):
         self.infile = infile
         with open(infile, 'r', encoding='utf-8') as f:
             soup = BeautifulSoup(f, 'html.parser')
@@ -166,7 +382,7 @@ class COH_Report:
                         additional_data = cols[1].find('i', class_='faded-style')
                         additional_data = additional_data.text.strip() if additional_data else None
                         completion_date = cols[2].text.strip()
-                        purchased = bool(cols[3].find('i', class_='fas fa-lg fa-check')) and read_purchased_as_awarded
+                        purchased = bool(cols[3].find('i', class_='fas fa-lg fa-check'))
                         awarded = bool(cols[4].find('i', class_='fas fa-lg fa-check'))
                         awarded_date = cols[5].find('input', class_='krajee-datepicker')
                         awarded_date = awarded_date['value'].strip() if awarded_date else None
@@ -175,14 +391,17 @@ class COH_Report:
                             frontier = re.split(r'[()]', additional_data)[1].strip()
                             additional_data = f'{frontier} Elective'
                         if 'Design Your Own Badge' in award_name:
-                            # askstring("DYOB Badge", "Enter name of badge earned by {ABC} on {XYZ}:")
-                            award_name = input(
-                                f'Please enter the correct name for the Design Your Own/TEAMS {additional_data} Badge earned by {name} on {completion_date}:'
-                                )
+                            badge_name = self.config.get_badge_name(name, completion_date)
+                            if badge_name is None:
+                                badge_name = askstring("Design-Your-Own/TEAMS Badge",
+                                          f'Enter name for the custom {additional_data} Badge earned by {name} on {completion_date}:')
+                            award_name = badge_name
                         if program_level in ['Navigator', 'Adventurer'] and 'Rank' in award_name and purchased:
-                            purchased = False
+                            purchased = self.config.get_skip_purchased_ranks()
                             additional_data = "Previously Announced"
-                            print(f'{award_name} earned by {name} on {completion_date} was marked as purchased. Including in to-award list.')
+                            #print(f'{award_name} earned by {name} on {completion_date} was marked as purchased. Including in to-award list.')
+                        else:
+                            purchased = purchased and self.config.get_skip_purchased_awards()
                         
                         branch_color = None
                         if program_level in ['Fox', 'Hawk', 'Mountain Lion'] and (('Branch Pin' in award_name) or ('Sylvan Star' in award_name)):
@@ -694,7 +913,7 @@ class COH_Report:
                 f.write(html_template)
 
     def generate_shopping_list(self, output_file=None):
-        if output_file is None:
+        if output_file is None or output_file=="":
             output_file = 'COH-shopping-list-' + datetime.now().strftime("%Y%m%d%H%M") + '.xlsx'
         skip_rows = [5,6,22,23,29,30,35,36,55,56]
         extra_comment_rows = [1,24,25,26,31,32,33]
@@ -781,34 +1000,43 @@ def latest_data_file():
                 most_recent_datafile = file
     return most_recent_datafile
     
+
+def main():
+    Tk().withdraw()
+    input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files",("*.htm","*.html"))])
+    file_path = Path(input_file_path).resolve().parent
+    os.chdir(file_path)
+    
+    settings_file = "TL_Awards_Parser_settings.xml"
+    config = TLCParserConfig()
+    if Path(settings_file).is_file():
+        config.load(settings_file)
+    
+    cohdata = COH_Report(input_file_path, config)
+    
+    if config.get_merge_with_previous_data():
+        # merging with previous data file. First, save new awards shopping list if specified
+        if config.get_new_awards_shopping_list() is not None and config.get_new_awards_shopping_list()!="":
+            cohdata.generate_shopping_list( config.get_new_awards_shopping_list() )
         
-# Example usage - Set initial_dump to true normally. If you have updates to awards already processed,
-# save the new CoH Report to 'AdditionalAwards.htm' and set initial_dump to False 
-initial_dump = True
+        # now merge in old data (get latest pkl file if a specific file is not specified)
+        previous_data_file = config.get_previous_data_file()
+        if previous_data_file is None or previous_data_file=="":
+            previous_data_file = latest_data_file()
+        cohdata.load_data(previous_data_file)
+        
+        # if specified, write new card data to file
+        if config.get_new_awards_cards_output_file() is not None and config.get_new_awards_cards_output_file()!="":
+            cohdata.generate_detailed_output(config.get_new_awards_cards_output_file(), False, False)
+        
+    # generate award output
+    if config.get_full_awards_output_file() is not None and config.get_full_awards_output_file()!="":
+        cohdata.generate_detailed_output(config.get_full_awards_output_file(),print_previous=True)
+    cohdata.generate_detailed_output(config.get_awards_cards_output_file())
+    cohdata.generate_awards_program(config.get_awards_program_output_file())
+    cohdata.generate_shopping_list(config.get_awards_shopping_list())
+    cohdata.save_data()
+    config.write(settings_file)
 
-Tk().withdraw()
-input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files",("*.htm","*.html"))])
-file_path = Path(input_file_path).resolve().parent
-os.chdir(file_path)
-
-awards_program = 'awards_program.html'
-award_cards = 'awards_detail_cards.html'
-if initial_dump:
-    full_dump_file = 'awards_full_dump.html'
-else:
-    full_dump_file = 'updated_awards_full_dump.html'
-    previous_data_file = latest_data_file()
-    new_awards_shopping_list = 'temp_new_awards_shopping_list.xlsx'
-    updated_award_cards = 'updated_awards_detail_cards.html'
-       
-cohdata = COH_Report(input_file_path)
-if not initial_dump:
-    cohdata.generate_shopping_list(new_awards_shopping_list)
-    cohdata.load_data(previous_data_file)
-    cohdata.generate_detailed_output(updated_award_cards, False, False)
-
-cohdata.generate_detailed_output(full_dump_file,print_previous=True)
-cohdata.generate_detailed_output(award_cards)
-cohdata.generate_awards_program(awards_program)
-cohdata.generate_shopping_list()
-cohdata.save_data()
+if __name__ == "__main__":
+    main()
