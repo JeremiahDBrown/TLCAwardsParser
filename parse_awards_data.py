@@ -395,6 +395,11 @@ class COH_Report:
                             if badge_name is None:
                                 badge_name = askstring("Design-Your-Own/TEAMS Badge",
                                           f'Enter name for the custom {additional_data} Badge earned by {name} on {completion_date}:')
+                                self.config.badges.append({
+                                                'Trailman': name,
+                                                'CompletedDate': completion_date,
+                                                'BadgeName': badge_name
+                                            })
                             award_name = badge_name
                         if program_level in ['Navigator', 'Adventurer'] and 'Rank' in award_name and purchased:
                             purchased = self.config.get_skip_purchased_ranks()
