@@ -17,7 +17,7 @@
     <!--Optional full awards output file (including purchased awards skipped in the program).-->
     <FullAwardsOutputFile>awards_full_listing.html</FullAwardsOutputFile>
 
-    <!--Set to 1 to merge with previous data.-->
+    <!--Set to 1 to merge with previous data. Normally use with both SkipPurchased options set to 1.-->
     <MergeWithPreviousData>0</MergeWithPreviousData>
     <!--PKL file to merge with (blank = merge with most recent file).-->
     <PreviousDataFile/>

@@ -168,7 +168,7 @@ class TLCParserConfig:
         add_setting(
             'MergeWithPreviousData',
             self.merge_with_previous_data,
-            "Set to 1 to merge with previous data."
+            "Set to 1 to merge with previous data. Normally use with both SkipPurchased options set to 1."
         )
 
         add_setting(
@@ -251,14 +251,27 @@ class COH_Report:
         
     @staticmethod
     def merge_awards(list1, list2):
+        def normalize_additional_data(d):
+            add = (d.get('additional_data') or "").strip()
+            award = (d.get('award_name') or "").strip()
+            if add.lower() == "previously announced":
+                # Use first word of award_name
+                return award.split()[0] if award else ""
+            else:
+                return add
+        
         def dict_key(d):
-            return tuple(d.get(k) for k in ['award_name', 'additional_data', 'completion_date'])
+            return (
+                d.get('award_name'),
+                normalize_additional_data(d),
+                d.get('completion_date')
+                )
+        
         seen = {dict_key(d) for d in list1}
         merged = list1[:]
         for d in list2:
             if dict_key(d) not in seen:
                 merged.append(d)
-                # seen.add(dict_key(d))
         return merged
 
     @staticmethod
@@ -326,7 +339,7 @@ class COH_Report:
         with open(datafile, 'rb') as infile:
             old_data = pickle.load(infile)
             self.new_awards = COH_Report.combine_lists(self.new_awards, old_data.new_awards)
-            if self.date is None or old_data.date < self.date:
+            if self.date is None or old_data.date <= self.date:
                 self.previous_awards = old_data.previous_awards
             if self.date is None:
                 self.date = old_data.date
@@ -462,6 +475,7 @@ class COH_Report:
         
         # integrate new data
         self.new_awards = COH_Report.combine_lists(self.new_awards, new_awards_list)
+        # awarded date listed in otuput file is the date the COH report is generated in TLC
         filedate = datetime.strptime(awarded_date, '%m/%d/%Y').date()
         if self.date is None or filedate < self.date:
             self.previous_awards = previous_awards_list
@@ -1007,8 +1021,11 @@ def latest_data_file():
     
 
 def main():
-    Tk().withdraw()
+    root = Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
     input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files",("*.htm","*.html"))])
+    root.attributes('-topmost', False)
     file_path = Path(input_file_path).resolve().parent
     os.chdir(file_path)
     
@@ -1024,15 +1041,15 @@ def main():
         if config.get_new_awards_shopping_list() is not None and config.get_new_awards_shopping_list()!="":
             cohdata.generate_shopping_list( config.get_new_awards_shopping_list() )
         
+        # if specified, write new card data to file
+        if config.get_new_awards_cards_output_file() is not None and config.get_new_awards_cards_output_file()!="":
+            cohdata.generate_detailed_output(config.get_new_awards_cards_output_file(), False, False)
+
         # now merge in old data (get latest pkl file if a specific file is not specified)
         previous_data_file = config.get_previous_data_file()
         if previous_data_file is None or previous_data_file=="":
             previous_data_file = latest_data_file()
         cohdata.load_data(previous_data_file)
-        
-        # if specified, write new card data to file
-        if config.get_new_awards_cards_output_file() is not None and config.get_new_awards_cards_output_file()!="":
-            cohdata.generate_detailed_output(config.get_new_awards_cards_output_file(), False, False)
         
     # generate award output
     if config.get_full_awards_output_file() is not None and config.get_full_awards_output_file()!="":
@@ -1042,6 +1059,7 @@ def main():
     cohdata.generate_shopping_list(config.get_awards_shopping_list())
     cohdata.save_data()
     config.write(settings_file)
+    root.destroy()
 
 if __name__ == "__main__":
     main()
