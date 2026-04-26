@@ -1023,9 +1023,7 @@ def latest_data_file():
 def main():
     root = Tk()
     root.withdraw()
-    root.attributes('-topmost', True)
     input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files",("*.htm","*.html"))])
-    root.attributes('-topmost', False)
     file_path = Path(input_file_path).resolve().parent
     os.chdir(file_path)
     

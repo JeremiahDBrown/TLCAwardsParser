@@ -1,0 +1,3 @@
+build/*
+dist/*
+parse_awards_data.spec
