@@ -190,18 +190,12 @@ class TLCParserConfig:
         )
 
         # ---- DYOBadges ----
-        badges_to_write = self.badges
-        if not badges_to_write:
-            badges_to_write.append({
-                'Trailman': 'John Doe',
-                'CompletedDate': '01/01/2001',
-                'BadgeName': 'Example Badge 1'
-            })
-            badges_to_write.append({
-                'Trailman': 'James Doe',
-                'CompletedDate': '01/01/2001',
-                'BadgeName': 'Example Badge 2'
-            })
+        badges_to_write = self.badges if self.badges else [
+            {'Trailman': 'John Doe','CompletedDate': '01/01/2001',
+                'BadgeName': 'Example Badge 1'},
+            {'Trailman': 'James Doe', 'CompletedDate': '01/01/2001',
+                'BadgeName': 'Example Badge 2'}
+            ]
         
         root.append(ET.Comment(
             """Optional group listing any custom Design-Your-Own/TEAMS badge names.
@@ -211,7 +205,7 @@ class TLCParserConfig:
         ))
         dyo = ET.SubElement(root, 'DYOBadges')
 
-        for b in self.badges:
+        for b in badges_to_write:
             dyo.append(ET.Comment(
                 "Custom badge entry"
             ))
@@ -234,9 +228,9 @@ class TLCParserConfig:
             f.write(pretty)
 
 class COH_Report:
-    def __init__(self, infile=None, config=TLCParserConfig()):
+    def __init__(self, infile=None, config=None):
         self.infile = infile
-        self.config = config
+        self.config = config if config is not None else TLCParserConfig()
         self.previous_awards = []
         self.new_awards = []
         self.date = None
@@ -400,7 +394,7 @@ class COH_Report:
                         awarded_date = cols[5].find('input', class_='krajee-datepicker')
                         awarded_date = awarded_date['value'].strip() if awarded_date else None
                         
-                        if 'Electives (' in additional_data:
+                        if additional_data and 'Electives (' in additional_data:
                             frontier = re.split(r'[()]', additional_data)[1].strip()
                             additional_data = f'{frontier} Elective'
                         if 'Design Your Own Badge' in award_name:
@@ -408,6 +402,8 @@ class COH_Report:
                             if badge_name is None:
                                 badge_name = askstring("Design-Your-Own/TEAMS Badge",
                                           f'Enter name for the custom {additional_data} Badge earned by {name} on {completion_date}:')
+                                if not badge_name:
+                                    badge_name = "Unnamed Badge"
                                 self.config.badges.append({
                                                 'Trailman': name,
                                                 'CompletedDate': completion_date,
@@ -423,7 +419,7 @@ class COH_Report:
                         
                         branch_color = None
                         if program_level in ['Fox', 'Hawk', 'Mountain Lion'] and (('Branch Pin' in award_name) or ('Sylvan Star' in award_name)):
-                            match(award_name.split(maxsplit=1)[0].lower()):
+                            match award_name.split(maxsplit=1)[0].lower():
                                 case 'heritage':
                                     branch_color = 'Brown'
                                 case 'life':
@@ -476,6 +472,8 @@ class COH_Report:
         # integrate new data
         self.new_awards = COH_Report.combine_lists(self.new_awards, new_awards_list)
         # awarded date listed in otuput file is the date the COH report is generated in TLC
+        if not awarded_date:
+            raise ValueError("No valid awarded_date found.")
         filedate = datetime.strptime(awarded_date, '%m/%d/%Y').date()
         if self.date is None or filedate < self.date:
             self.previous_awards = previous_awards_list
@@ -869,28 +867,28 @@ class COH_Report:
         </head>
         <body>
             <div class="section">
-                <h1>Fox Awards</h2>
+                <h1>Fox Awards</h1>
                 <div class="container">
                     {fox_blocks}
                 </div>
             </div>
 
             <div class="section">
-                <h1>Hawk Awards</h2>
+                <h1>Hawk Awards</h1>
                 <div class="container">
                     {hawk_blocks}
                 </div>
             </div>
 
             <div class="section">
-                <h1>Mountain Lion Awards</h2>
+                <h1>Mountain Lion Awards</h1>
                 <div class="container">
                     {ml_blocks}
                 </div>
             </div>
 
             <div class="section page-break">
-                <h1>Woodland Trails Special Awards</h2>
+                <h1>Woodland Trails Special Awards</h1>
                 <div class="container">
                     {wt_special_blocks}
                 </div>
@@ -904,21 +902,21 @@ class COH_Report:
             </div>
 
             <div class="section">
-                <h1>Adventurer Awards</h2>
+                <h1>Adventurer Awards</h1>
                 <div class="container">
                     {adv_blocks}
                 </div>
             </div>
 
             <div class="section page-break">
-                <h1>Rank Advancement Awards</h2>
+                <h1>Rank Advancement Awards</h1>
                 <div class="container">
                     {rank_adv_blocks}
                 </div>
             </div>
 
             <div class="section page-break">
-                <h1>Navigators/Adventurers Special Awards</h2>
+                <h1>Navigators/Adventurers Special Awards</h1>
                 <div class="container">
                     {navadv_special_blocks}
                 </div>
@@ -1008,7 +1006,7 @@ class COH_Report:
 def latest_data_file():
     pattern = re.compile(r'COH-data-(\d{12})\.pkl')
     files = glob.glob('COH-data-*.pkl')
-    most_recent_datafile = []
+    most_recent_datafile = None
     most_recent_date = datetime(2014,1,1)
     for file in files:
         dmatch = pattern.search(file)
@@ -1024,6 +1022,8 @@ def main():
     root = Tk()
     root.withdraw()
     input_file_path = askopenfilename(title="Court of Honor Report File", filetypes=[("HTML Files",("*.htm","*.html"))])
+    if not input_file_path:
+        return
     file_path = Path(input_file_path).resolve().parent
     os.chdir(file_path)
     
