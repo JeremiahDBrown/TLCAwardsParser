@@ -385,6 +385,7 @@ class COH_Report:
                 for row in rows:
                     cols = row.find_all('td')
                     if len(cols) >= 6:
+                        new_award = True
                         award_name = cols[1].find('strong').text.strip()
                         additional_data = cols[1].find('i', class_='faded-style')
                         additional_data = additional_data.text.strip() if additional_data else None
@@ -411,11 +412,11 @@ class COH_Report:
                                             })
                             award_name = badge_name
                         if program_level in ['Navigator', 'Adventurer'] and 'Rank' in award_name and purchased:
-                            purchased = self.config.get_skip_purchased_ranks()
+                            new_award = not self.config.get_skip_purchased_ranks()
                             additional_data = "Previously Announced"
                             #print(f'{award_name} earned by {name} on {completion_date} was marked as purchased. Including in to-award list.')
                         else:
-                            purchased = purchased and self.config.get_skip_purchased_awards()
+                            new_award = not (purchased and self.config.get_skip_purchased_awards())
                         
                         branch_color = None
                         if program_level in ['Fox', 'Hawk', 'Mountain Lion'] and (('Branch Pin' in award_name) or ('Sylvan Star' in award_name)):
@@ -440,8 +441,8 @@ class COH_Report:
                                 additional_data = program_level + ' ' + branch_color + ' Sylvan Star'
                             # award_name = award_name.split('(')[0].strip()
                         
-                        if purchased:
-                            purchased_awards.append({
+                        if new_award:
+                            new_awards.append({
                                 'award_name': award_name,
                                 'additional_data': additional_data,
                                 'completion_date': completion_date,
@@ -450,7 +451,7 @@ class COH_Report:
                                 #'awarded_date': awarded_date
                             })
                         else:
-                            new_awards.append({
+                            purchased_awards.append({
                                 'award_name': award_name,
                                 'additional_data': additional_data,
                                 'completion_date': completion_date,
@@ -653,30 +654,36 @@ class COH_Report:
             if len(matches) > 0:
                 award_name = f'{level} Branch Patch'
                 award_str = award_str + f'<tr><td>{award_name}</td></tr>'
-                self.award_count[award_name] += 1
+                if not matches[0].get('purchased'):
+                    self.award_count[award_name] += 1
             matches = [entry for entry in person["awards"] if 'Forest Award' in entry.get('award_name')]
             if len(matches) > 0:
                 award_name = f'{level} Forest Award'
                 award_str = award_str + f'<tr><td>{award_name}</td></tr>'
-                self.award_count[award_name] += 1
+                if not matches[0].get('purchased'):
+                    self.award_count[award_name] += 1
             matches = [entry for entry in person["awards"] if 'Branch Pin' in entry.get('award_name')]
             if len(matches) > 0:
                 award_str = award_str + f'<tr><td>{len(matches)} {level} Branch Pins</td>'
-                self.award_count[f'{color} Branch Pins'] += len(matches)
+                count = sum(1 for entry in matches if not entry.get('purchased'))
+                self.award_count[f'{color} Branch Pins'] += count
             matches = [entry for entry in person["awards"] if 'Sylvan Star' in entry.get('award_name')]
             if len(matches) > 0:
                 award_str = award_str + f'<tr><td>{len(matches)} {level} Sylvan Star</td></tr>'
-                self.award_count[f'{color} Sylvan Stars'] += len(matches)
+                count = sum(1 for entry in matches if not entry.get('purchased'))
+                self.award_count[f'{color} Sylvan Stars'] += count
             matches = [entry for entry in person["awards"] if 'Fireguard' in entry.get('award_name')]
             if len(matches) > 0:
                 award_name = 'Fireguard'
                 award_str = award_str + f'<tr><td>{award_name} Award</td></tr>'
-                self.award_count[award_name] += 1
+                if not matches[0].get('purchased'):
+                    self.award_count[award_name] += 1
             matches = [entry for entry in person["awards"] if 'Woodsman' in entry.get('award_name')]
             if len(matches) > 0:
                 award_name = 'Woodsman'
                 award_str = award_str + f'<tr><td>{award_name} Award</td></tr>'
-                self.award_count[award_name] += 1
+                if not matches[0].get('purchased'):
+                    self.award_count[award_name] += 1
 
             return f"""
             <div class="person-block">
@@ -702,20 +709,24 @@ class COH_Report:
             for badge in matches:
                 award_name = badge['award_name'].split('(',maxsplit=1)[0].strip()
                 award_str = award_str + f'<tr><td>{award_name}</td></tr>'
-                self.award_count[award_name] += 1
+                if not badge.get('purchased'):
+                    self.award_count[award_name] += 1
             matches = [entry for entry in person["awards"] if ' Elective' in entry.get('additional_data')]
             for badge in matches:
                 award_name = badge['award_name']
                 award_str = award_str + f'<tr><td>{award_name}</td></tr>'
-                self.award_count[badge['additional_data']] += 1
+                if not badge.get('purchased'):
+                    self.award_count[badge['additional_data']] += 1
             matches = [entry for entry in person["awards"] if 'Navigator Service Star' in entry.get('award_name')]
             if len(matches)>0:
                 award_str = award_str + f'<tr><td>{len(matches)} Navigator Service Stars</td></tr>'
-                self.award_count['Navigator Service Star'] += len(matches)
+                count = sum(1 for entry in matches if not entry.get('purchased'))
+                self.award_count['Navigator Service Star'] += count
             matches = [entry for entry in person["awards"] if 'Adventurer Service Star' in entry.get('award_name')]
             if len(matches)>0:
                 award_str = award_str + f'<tr><td>{len(matches)} Adventurer Service Stars</td></tr>'
-                self.award_count['Adventurer Service Star'] += len(matches)
+                count = sum(1 for entry in matches if not entry.get('purchased'))
+                self.award_count['Adventurer Service Star'] += count
             return f"""
             <div class="person-block">
                 <h3>{name} <span class="level">({level})</span></h3>
@@ -736,10 +747,11 @@ class COH_Report:
                 matches = [entry for entry in p["awards"] if rank in entry.get('award_name')]
                 if len(matches)>0:
                     award_str = award_str + f'<tr><td>{p["name"]}</td></tr>'
-                    self.award_count[rank] += 1
-                    if 'Able' in rank:
-                        self.award_count['Ceremonial Standard'] += 1
-                        self.award_count['Standard Medallion'] += 1
+                    if not matches[0].get('purchased'):
+                        self.award_count[rank] += 1
+                        if 'Able' in rank:
+                            self.award_count['Ceremonial Standard'] += 1
+                            self.award_count['Standard Medallion'] += 1
             if len(award_str) == 0:
                 return ""
             else:
@@ -763,8 +775,9 @@ class COH_Report:
                 matches = [entry for entry in p["awards"] if 'Worthy Life Award' in entry.get('award_name')]
                 if len(matches)>0 and p["program_level"] in levels:
                     award_str = award_str + f'<tr><td>{p["name"]}</td><td>{p["program_level"]}</td></tr>'
-                    self.award_count['Worthy Life Award'] += 1
-                    self.award_count['Worthy Life Cross'] += 1
+                    if not matches[0].get('purchased'):
+                        self.award_count['Worthy Life Award'] += 1
+                        self.award_count['Worthy Life Cross'] += 1
             return f"""
             <div class="person-block">
                 <h3>Worthy Life Awards</h3>
@@ -785,7 +798,8 @@ class COH_Report:
                 matches = [entry for entry in p["awards"] if award_name in entry.get('award_name')]
                 if len(matches)>0:
                     award_str = award_str + f'<tr><td>{p["name"]}</td></tr>'
-                    self.award_count[award_name] += 1
+                    if not matches[0].get('purchased'):
+                        self.award_count[award_name] += 1
             return f"""
             <div class="person-block">
                 <h3>{award_name}s</h3>
